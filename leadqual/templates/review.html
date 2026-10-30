@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lead Review</title>
+<style>
+  :root{--bg:#f6f7fb;--card:#fff;--text:#141a2e;--muted:#66708a;--hot:#d9480f;--warm:#e8a317;--cold:#4c6ef5;--accent:#2f7bff}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,sans-serif}
+  main{max-width:860px;margin:0 auto;padding:24px 16px}
+  .card{background:var(--card);border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .pill{padding:3px 10px;border-radius:99px;color:#fff;font-size:12px;font-weight:700;text-transform:uppercase}
+  .hot{background:var(--hot)}.warm{background:var(--warm)}.cold{background:var(--cold)}
+  .muted{color:var(--muted);font-size:14px}
+  input,textarea{width:100%;box-sizing:border-box;border:1px solid #d9dde8;border-radius:8px;padding:8px;font:inherit}
+  textarea{min-height:150px}
+  .actions{display:flex;gap:8px;margin-top:8px}
+  button{border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer}
+  .ok{background:var(--accent);color:#fff}.no{background:#e9ecf3}
+</style>
+</head>
+<body>
+<main>
+  <h1>Follow-ups waiting for approval ({{ drafts|length }})</h1>
+  {% if not drafts %}<p class="muted">Inbox zero. New leads will appear here.</p>{% endif %}
+  {% for d in drafts %}
+  <div class="card" id="d{{ d.id }}">
+    <div class="top">
+      <div><strong>{{ d.lead.name or d.lead.email }}</strong> <span class="muted">{{ d.lead.company }} · {{ d.lead.email }}</span></div>
+      <div><span class="pill {{ d.qualification.tier }}">{{ d.qualification.tier }}</span> <strong>{{ d.qualification.score }}/100</strong></div>
+    </div>
+    <p>{{ d.qualification.summary }}</p>
+    <p class="muted">{{ d.qualification.reasons|join(' · ') }}<br><b>Next step:</b> {{ d.qualification.next_step }}</p>
+    <input class="subject" value="{{ d.subject }}">
+    <textarea class="body">{{ d.body }}</textarea>
+    <div class="actions">
+      <button class="ok" onclick="decide({{ d.id }}, 'approve')">Approve &amp; send</button>
+      <button class="no" onclick="decide({{ d.id }}, 'reject')">Reject</button>
+    </div>
+  </div>
+  {% endfor %}
+</main>
+<script>
+const KEY = {{ key|tojson }};
+async function decide(id, action) {
+  const card = document.getElementById('d' + id);
+  const body = action === 'approve' ? JSON.stringify({subject: card.querySelector('.subject').value, body: card.querySelector('.body').value}) : '{}';
+  const r = await fetch(`/queue/${id}/${action}`, {method: 'POST', headers: {'content-type': 'application/json', 'x-admin-key': KEY}, body});
+  if (r.ok) card.remove(); else alert('Error: ' + (await r.text()));
+}
+</script>
+</body>
+</html>
